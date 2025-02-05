@@ -1,6 +1,9 @@
 import NextAuth from "next-auth";
 import type { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcrypt"
+import { User } from "@/app/models/User";
+import connectDB from "@/lib/db";
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -10,7 +13,7 @@ export const authOptions: AuthOptions = {
         email: { 
           label: "Email", 
           type: "email",
-          placeholder: "john.doe@example.com"
+          placeholder: "momohussein@lutscht.com"
         },
         password: { 
           label: "Password", 
@@ -19,37 +22,32 @@ export const authOptions: AuthOptions = {
         }
       },
       async authorize(credentials) {
-        // Hier kommt später deine Authentifizierungslogik
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
         try {
-          // Beispiel für die spätere Implementierung:
-          // const user = await prisma.user.findUnique({
-          //   where: { email: credentials.email }
-          // });
-          
-          // if (!user) {
-          //   return null;
-          // }
-          
-          // const passwordMatch = await bcrypt.compare(
-          //   credentials.password,
-          //   user.password
-          // );
-          
-          // if (!passwordMatch) {
-          //   return null;
-          // }
-          
-          // return {
-          //   id: user.id,
-          //   email: user.email,
-          //   name: user.name
-          // };
+          await connectDB();
 
-          return null;
+          const user = await User.findOne({email: credentials.email});
+          if(!user){
+            return null;
+          }
+
+          const passwordMatch = await bcrypt.compare(
+            credentials.password,
+            user.password
+          );
+
+          if(!passwordMatch){
+            return null
+          }
+
+          return{
+            id: user._id.toString(),
+            email: user.email
+          };
+
         } catch (error) {
           console.error("Error: ", error);
           return null;
@@ -58,9 +56,9 @@ export const authOptions: AuthOptions = {
     })
   ],
   pages: {
-    signIn: '/auth/signin',  // Custom signin page path
-    signOut: '/auth/signout', // Custom signout page path
-    error: '/auth/error',    // Error page for auth issues
+    signIn: '/auth/signin',  
+    signOut: '/auth/signout', 
+    error: '/auth/error',    
   },
   session: {
     strategy: "jwt",
