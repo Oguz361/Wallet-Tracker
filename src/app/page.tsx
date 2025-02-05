@@ -18,7 +18,7 @@ export default function Home() {
 
           {/* Description */}
           <p className="mb-12 max-w-2xl text-center text-lg text-white/60">
-            Track your wallets, analyze transactions, and stay informed about all
+            Track wallets, analyze transactions, and stay informed about all
             activities with our real-time notifications.
           </p>
 
