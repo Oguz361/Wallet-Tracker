@@ -13,12 +13,17 @@ import {
   navigationMenuTriggerStyle,
 } from "../components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
+import { Particles } from "@/components/ui/particles";
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen bg-black overflow-hidden">
-      <div className="relative flex min-h-screen flex-col items-center z-20">
-        {/* Navigation Menu - Links */}
+    <main className="relative">
+      <div className="fixed inset-0 z-0">
+        <Particles />
+      </div>
+      
+      <div className="relative min-h-screen z-10">
+        {/* Erweiterte NavigationMenu mit zwei Listen */}
         <NavigationMenu className="absolute top-4 left-8">
           <NavigationMenuList>
             <NavigationMenuItem>
@@ -32,19 +37,29 @@ export default function Home() {
         </NavigationMenu>
 
         {/* Auth Buttons - Rechts */}
-        <div className="absolute top-4 right-8 flex gap-4">
-          <Button
-            asChild
-            className="bg-transparent hover:bg-white/10 text-white"
-          >
-            <Link href="/signin">Sign in</Link>
-          </Button>
-          <Button asChild className="bg-white text-black hover:bg-white/90">
-            <Link href="/signup">Sign up</Link>
-          </Button>
-        </div>
+        <NavigationMenu className="absolute top-4 right-8">
+          <NavigationMenuList className="flex gap-4">
+            <NavigationMenuItem>
+              <Button
+                asChild
+                className="bg-transparent hover:bg-white/10 text-white"
+              >
+                <Link href="/signin">Sign in</Link>
+              </Button>
+            </NavigationMenuItem>
+            <NavigationMenuItem>
+              <Button 
+                asChild 
+                className="bg-white text-black hover:bg-white/90"
+              >
+                <Link href="/signup">Sign up</Link>
+              </Button>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
 
-        <main className="flex flex-col items-center mt-32 px-4">
+        {/* Hauptinhalt */}
+        <div className="flex flex-col items-center pt-32 px-4">
           {/* Title Section */}
           <div className="mb-8 text-center">
             <h1 className="mb-4 text-6xl font-bold text-white bg-clip-text">
@@ -80,9 +95,8 @@ export default function Home() {
               </Link>
             </Button>
           </div>
-        </main>
+        </div>
       </div>
-      <Meteors number={20} />
-    </div>
+    </main>
   );
 }
