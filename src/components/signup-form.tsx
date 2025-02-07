@@ -1,3 +1,5 @@
+"use client";
+
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -124,7 +126,7 @@ export function SignUpForm({
             </div>
             <div className="mt-4 text-center text-sm">
               Already have an account?{" "}
-              <a href="/auth/signin" className="underline underline-offset-4">
+              <a href="/auth/signin" className="underline underline-offset-4 hover:text-primary">
                 Sign in
               </a>
             </div>
