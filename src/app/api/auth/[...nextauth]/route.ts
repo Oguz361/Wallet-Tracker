@@ -2,8 +2,7 @@ import NextAuth from "next-auth";
 import type { AuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt"
-import { User } from "@/app/models/User";
-import connectDB from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export const authOptions: AuthOptions = {
   providers: [
@@ -13,7 +12,7 @@ export const authOptions: AuthOptions = {
         email: { 
           label: "Email", 
           type: "email",
-          placeholder: "momohussein@lutscht.com"
+          placeholder: "email@example.com"
         },
         password: { 
           label: "Password", 
@@ -27,9 +26,10 @@ export const authOptions: AuthOptions = {
         }
 
         try {
-          await connectDB();
-
-          const user = await User.findOne({email: credentials.email});
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email }
+          });
+          
           if(!user){
             return null;
           }
@@ -43,13 +43,13 @@ export const authOptions: AuthOptions = {
             return null
           }
 
-          return{
-            id: user._id.toString(),
+          return {
+            id: user.id,
             email: user.email
           };
 
         } catch (error) {
-          console.error("Error: ", error);
+          console.error("Auth error: ", error);
           return null;
         }
       }

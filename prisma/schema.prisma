@@ -1,0 +1,51 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  createdAt     DateTime  @default(now())
+  wallets       Wallet[]
+}
+
+// Wallet model for storing Solana addresses
+model Wallet {
+  id            String    @id @default(cuid())
+  address       String
+  label         String?
+  isMain        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, address])
+}
+
+// Transaction tracking (optional - for local caching of blockchain data)
+model TransactionCache {
+  id            String   @id
+  signature     String   @unique
+  walletAddress String
+  blockTime     DateTime
+  status        String
+  amount        Float?
+  type          String
+  data          Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([walletAddress])
+  @@index([blockTime])
+}
