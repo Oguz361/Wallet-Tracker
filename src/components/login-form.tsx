@@ -1,64 +1,66 @@
 "use client";
 
-import { useState } from "react"
-import { signIn } from "next-auth/react"
-import { useRouter } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState("")
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-  })
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
     try {
+      console.log("Attempting to sign in with:", formData.email);
       const result = await signIn("credentials", {
         email: formData.email,
         password: formData.password,
         redirect: false,
-      })
+      });
 
       if (result?.error) {
-        setError("Invalid credentials")
-        return
+        console.error("Login error:", result.error);
+        setError("Invalid credentials");
+        return;
       }
 
-      router.push("/dashboard") // Redirect nach erfolgreicher Anmeldung
+      router.push("/dashboard"); 
     } catch (error) {
-      setError("Something went wrong. Please try again.")
-    } finally {
-      setIsLoading(false)
+      console.error("Login error:", error);
+      setError("Something went wrong. Please try again.");
     }
-  }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [e.target.id]: e.target.value
-    }))
-  }
+      [e.target.id]: e.target.value,
+    }));
+  };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -92,16 +94,16 @@ export function LoginForm({
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password">Password</Label>
-                  <a
+                  <Link
                     href="#"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                   >
                     Forgot your password?
-                  </a>
+                  </Link>
                 </div>
-                <Input 
-                  id="password" 
-                  type="password" 
+                <Input
+                  id="password"
+                  type="password"
                   required
                   value={formData.password}
                   onChange={handleChange}
@@ -111,19 +113,19 @@ export function LoginForm({
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Loading..." : "Login"}
               </Button>
-              <Button variant="outline" className="w-full" disabled={isLoading}>
-                Login with Google
-              </Button>
             </div>
             <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{" "}
-              <a href="#" className="underline underline-offset-4">
+              <Link
+                href="/auth/signup"
+                className="underline underline-offset-4 hover:text-primary"
+              >
                 Sign up
-              </a>
+              </Link>
             </div>
           </form>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

@@ -4,6 +4,12 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcrypt"
 import { prisma } from "@/lib/prisma";
 
+// Define custom auth type that matches our Prisma User model
+interface UserAuth {
+  id: string;
+  email: string;
+}
+
 export const authOptions: AuthOptions = {
   providers: [
     CredentialsProvider({
@@ -22,31 +28,39 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.log("Missing credentials");
           return null;
         }
 
         try {
+          console.log("Looking up user:", credentials.email);
           const user = await prisma.user.findUnique({
             where: { email: credentials.email }
           });
           
-          if(!user){
+          if (!user) {
+            console.log("User not found");
             return null;
           }
 
+          console.log("Comparing password for user:", user.id);
           const passwordMatch = await bcrypt.compare(
             credentials.password,
             user.password
           );
 
-          if(!passwordMatch){
-            return null
+          if (!passwordMatch) {
+            console.log("Password does not match");
+            return null;
           }
 
+          console.log("Authentication successful for user:", user.id);
+          
+          // Return only the fields needed for auth
           return {
             id: user.id,
             email: user.email
-          };
+          } as UserAuth;
 
         } catch (error) {
           console.error("Auth error: ", error);
@@ -55,6 +69,22 @@ export const authOptions: AuthOptions = {
       }
     })
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        // Use type assertion here to help TypeScript understand the structure
+        const userAuth = user as UserAuth;
+        token.id = userAuth.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (token && session.user) {
+        session.user.id = token.id;
+      }
+      return session;
+    }
+  },
   pages: {
     signIn: '/auth/signin',  
     signOut: '/auth/signout', 
@@ -62,6 +92,7 @@ export const authOptions: AuthOptions = {
   },
   session: {
     strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
