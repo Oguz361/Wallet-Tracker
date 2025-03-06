@@ -3,24 +3,23 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { isValidSolanaAddress } from "@/lib/solana";
+import { Particles } from "@/components/ui/particles";
+import { WalletAddModal } from "@/components/wallet-add-modal";
 import {
   BarChart,
   WalletIcon,
   Plus,
-  X,
   AlertTriangle,
   RefreshCw,
   ArrowUpRight,
   Trash2,
-  PencilLine,
-  Check,
   Star,
+  ActivityIcon,
 } from "lucide-react";
 
 interface Wallet {
@@ -51,10 +50,7 @@ export default function DashboardPage() {
   const [balances, setBalances] = useState<Record<string, WalletBalance>>({});
   const [loadingBalances, setLoadingBalances] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
-  const [newWalletAddress, setNewWalletAddress] = useState("");
-  const [newWalletLabel, setNewWalletLabel] = useState("");
-  const [addingWallet, setAddingWallet] = useState(false);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   // Fetch user's wallets
   useEffect(() => {
@@ -82,6 +78,11 @@ export default function DashboardPage() {
         initialLoadingState[wallet.address] = false;
       });
       setLoadingBalances(initialLoadingState);
+      
+      // Fetch balances for all wallets
+      data.forEach((wallet: Wallet) => {
+        fetchWalletBalance(wallet.address);
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -105,48 +106,6 @@ export default function DashboardPage() {
       console.error("Error fetching balance:", err);
     } finally {
       setLoadingBalances(prev => ({ ...prev, [walletAddress]: false }));
-    }
-  };
-
-  const handleAddWallet = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isValidSolanaAddress(newWalletAddress)) {
-      setError("Invalid Solana wallet address");
-      return;
-    }
-    
-    try {
-      setAddingWallet(true);
-      setError(null);
-      
-      const response = await fetch("/api/wallets", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          address: newWalletAddress,
-          label: newWalletLabel || null,
-        }),
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to add wallet");
-      }
-      
-      // Reset form
-      setNewWalletAddress("");
-      setNewWalletLabel("");
-      setShowAddForm(false);
-      
-      // Refresh wallets
-      fetchWallets();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add wallet");
-    } finally {
-      setAddingWallet(false);
     }
   };
 
@@ -197,6 +156,11 @@ export default function DashboardPage() {
     }
   };
 
+  const onWalletAdded = () => {
+    fetchWallets();
+    setShowAddModal(false);
+  };
+
   if (status === "loading") {
     return (
       <div className="container mx-auto p-4 flex items-center justify-center min-h-screen">
@@ -218,232 +182,265 @@ export default function DashboardPage() {
               You need to be signed in to access this page.
             </CardDescription>
           </CardHeader>
-          <CardFooter>
+          <CardContent>
             <Button asChild className="w-full">
               <Link href="/auth/signin">Sign In</Link>
             </Button>
-          </CardFooter>
+          </CardContent>
         </Card>
       </div>
     );
   }
 
+  // Generate sample data for chart
+  const chartData = [
+    { month: '01\nJanuar', value: 4200 },
+    { month: '02\nJanuar', value: 6800 },
+    { month: '03\nJanuar', value: 5000 },
+    { month: '04\nJanuar', value: 7900 },
+    { month: '05\nJanuar', value: 6300 },
+    { month: '06\nJanuar', value: 3700 },
+    { month: '07\nJanuar', value: 5800 },
+  ];
+
   return (
-    <div className="container mx-auto p-4">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Wallet Dashboard</h1>
-        <p className="text-muted-foreground">
-          Track your Solana wallets and monitor their activity
-        </p>
-      </header>
+    <div className="relative min-h-screen">
+      <div className="fixed inset-0 z-0">
+        <Particles />
+      </div>
+      
+      <div className="container mx-auto p-4 relative z-10 pt-6">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Dashboard</h1>
+          </div>
+          <Button 
+            className="mt-4 md:mt-0" 
+            onClick={() => setShowAddModal(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Wallet
+          </Button>
+        </div>
 
-      {error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-        {/* Add Wallet Card */}
-        <Card className="relative">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Plus className="mr-2 h-5 w-5" />
-              Add Wallet
-            </CardTitle>
-            <CardDescription>
-              Connect a new Solana wallet to track
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {showAddForm ? (
-              <form onSubmit={handleAddWallet} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="address">Wallet Address</Label>
-                  <Input
-                    id="address"
-                    placeholder="Enter Solana wallet address"
-                    value={newWalletAddress}
-                    onChange={(e) => setNewWalletAddress(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="label">Label (Optional)</Label>
-                  <Input
-                    id="label"
-                    placeholder="My Wallet"
-                    value={newWalletLabel}
-                    onChange={(e) => setNewWalletLabel(e.target.value)}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    type="submit"
-                    disabled={addingWallet || !newWalletAddress}
-                    className="flex-1"
-                  >
-                    {addingWallet ? "Adding..." : "Add Wallet"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddForm(false);
-                      setNewWalletAddress("");
-                      setNewWalletLabel("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            ) : (
-              <Button
-                onClick={() => setShowAddForm(true)}
-                className="w-full"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add New Wallet
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="settings">Settings</TabsTrigger>
+          </TabsList>
 
-        {/* Wallet Cards */}
-        {wallets.map((wallet) => (
-          <Card key={wallet.id} className="relative overflow-hidden">
-            {wallet.isMain && (
-              <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-bl">
-                Main Wallet
-              </div>
-            )}
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span className="truncate mr-2">{wallet.label || wallet.address.substring(0, 8) + "..."}</span>
-                <div className="flex gap-1">
-                  {!wallet.isMain && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleSetMainWallet(wallet.id)}
-                      title="Set as main wallet"
-                    >
-                      <Star className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDeleteWallet(wallet.id)}
-                    title="Delete wallet"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardTitle>
-              <CardDescription className="font-mono text-xs truncate">
-                {wallet.address}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {balances[wallet.address] ? (
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">SOL Balance:</span>
-                      <span className="font-semibold">
-                        {balances[wallet.address].solBalance.toFixed(4)} SOL
-                      </span>
-                    </div>
-                    {balances[wallet.address].tokens.length > 0 && (
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Tokens: {balances[wallet.address].tokens.length}
-                        </p>
-                        <div className="max-h-32 overflow-y-auto text-xs space-y-1">
-                          {balances[wallet.address].tokens.map((token, idx) => (
-                            <div key={idx} className="flex justify-between">
-                              <span className="truncate mr-2">{token.mint.substring(0, 8)}...</span>
-                              <span>{token.balance}</span>
-                            </div>
-                          ))}
+          <TabsContent value="overview">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle>Overview</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px] flex items-end justify-between gap-2">
+                    {chartData.map((item, index) => (
+                      <div key={index} className="flex flex-col items-center">
+                        <div 
+                          className="w-10 bg-white rounded-sm" 
+                          style={{ height: `${item.value / 100}px` }}
+                        ></div>
+                        <div className="text-xs mt-2 text-center whitespace-pre-line">
+                          {item.month}
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {wallets.slice(0, 5).map((wallet) => (
+                      <div key={wallet.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                            <WalletIcon className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="font-medium">{wallet.label || `Wallet ${wallet.address.substring(0, 4)}...`}</div>
+                            <div className="text-xs text-muted-foreground truncate max-w-[150px]">
+                              {wallet.address.substring(0, 8)}...{wallet.address.substring(wallet.address.length - 8)}
+                            </div>
+                          </div>
+                        </div>
+                        <div className={`text-right ${balances[wallet.address]?.solBalance > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {balances[wallet.address] ? 
+                            `${balances[wallet.address].solBalance.toFixed(4)} SOL` : 
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          }
+                        </div>
+                      </div>
+                    ))}
+
+                    {wallets.length === 0 && !loading && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No wallets added yet. Add your first wallet to get started.
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="text-center py-2">
-                    <p className="text-muted-foreground text-sm mb-2">
-                      No balance data
-                    </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <h2 className="text-xl font-bold mt-8 mb-4">Your Wallets</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {wallets.map((wallet) => (
+                <Card key={wallet.id} className="relative overflow-hidden">
+                  {wallet.isMain && (
+                    <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-bl">
+                      Main Wallet
+                    </div>
+                  )}
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="truncate mr-2">{wallet.label || wallet.address.substring(0, 8) + "..."}</span>
+                      <div className="flex gap-1">
+                        {!wallet.isMain && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleSetMainWallet(wallet.id)}
+                            title="Set as main wallet"
+                          >
+                            <Star className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteWallet(wallet.id)}
+                          title="Delete wallet"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardTitle>
+                    <CardDescription className="font-mono text-xs truncate">
+                      {wallet.address}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {balances[wallet.address] ? (
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">SOL Balance:</span>
+                            <span className="font-semibold">
+                              {balances[wallet.address].solBalance.toFixed(4)} SOL
+                            </span>
+                          </div>
+                          {balances[wallet.address].tokens.length > 0 && (
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">
+                                Tokens: {balances[wallet.address].tokens.length}
+                              </p>
+                              <div className="max-h-32 overflow-y-auto text-xs space-y-1">
+                                {balances[wallet.address].tokens.map((token, idx) => (
+                                  <div key={idx} className="flex justify-between">
+                                    <span className="truncate mr-2">{token.mint.substring(0, 8)}...</span>
+                                    <span>{token.balance}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center py-2">
+                          <p className="text-muted-foreground text-sm mb-2">
+                            {loadingBalances[wallet.address] ? "Loading balance..." : "No balance data"}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                  <div className="px-6 py-4 border-t flex justify-between">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={loadingBalances[wallet.address]}
+                      onClick={() => fetchWalletBalance(wallet.address)}
+                    >
+                      {loadingBalances[wallet.address] ? (
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                      )}
+                      {loadingBalances[wallet.address] ? "Loading..." : "Refresh"}
+                    </Button>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/dashboard/transactions?address=${wallet.address}`}>
+                        <ActivityIcon className="mr-2 h-4 w-4" />
+                        Transactions
+                      </Link>
+                    </Button>
                   </div>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={loadingBalances[wallet.address]}
-                onClick={() => fetchWalletBalance(wallet.address)}
-              >
-                {loadingBalances[wallet.address] ? (
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                {loadingBalances[wallet.address] ? "Loading..." : "Refresh"}
-              </Button>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" title="View Transactions" asChild>
-                  <Link href={`/dashboard/transactions?address=${wallet.address}`}>
-                    <BarChart className="mr-2 h-4 w-4" />
-                    Transactions
-                  </Link>
-                </Button>
-                <Button size="sm" variant="outline" title="View on Explorer" asChild>
-                  <a
-                    href={`https://explorer.solana.com/address/${wallet.address}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <ArrowUpRight className="mr-2 h-4 w-4" />
-                    Explorer
-                  </a>
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
-        ))}
+                </Card>
+              ))}
+
+              {loading && (
+                <div className="col-span-full text-center py-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+                  <p className="mt-4 text-lg">Loading your wallets...</p>
+                </div>
+              )}
+              
+              
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <Card>
+              <CardHeader>
+                <CardTitle>Analytics</CardTitle>
+                <CardDescription>View detailed analytics of your wallets and transactions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Analytics features coming soon. Stay tuned for updates!
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Settings</CardTitle>
+                <CardDescription>Manage your account and notification preferences</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Settings features coming soon. Stay tuned for updates!
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
-      {/* Loading State */}
-      {loading && (
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-lg">Loading your wallets...</p>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && wallets.length === 0 && !showAddForm && (
-        <Card className="max-w-md mx-auto">
-          <CardHeader>
-            <CardTitle>No Wallets Found</CardTitle>
-            <CardDescription>
-              You haven't added any Solana wallets yet. Add one to start tracking.
-            </CardDescription>
-          </CardHeader>
-          <CardFooter>
-            <Button onClick={() => setShowAddForm(true)} className="w-full">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Your First Wallet
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
+      <WalletAddModal 
+        isOpen={showAddModal} 
+        onClose={() => setShowAddModal(false)} 
+        onWalletAdded={onWalletAdded} 
+      />
     </div>
   );
 }
