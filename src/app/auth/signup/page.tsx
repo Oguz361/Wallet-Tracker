@@ -1,16 +1,10 @@
 "use client";
 
-import { Metadata } from "next"
 import { SignUpForm } from "@/components/signup-form"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { Particles } from "@/components/ui/particles"
-
-export const metadata: Metadata = {
-  title: "Sign Up",
-  description: "Create a new account",
-}
 
 export default function SignUpPage() {
   return (
@@ -24,7 +18,7 @@ export default function SignUpPage() {
           <Button variant="ghost" size="sm" asChild>
             <Link href="/" className="flex items-center gap-2">
               <ArrowLeft className="h-4 w-4" />
-              Back to Home
+              Back
             </Link>
           </Button>
         </div>
