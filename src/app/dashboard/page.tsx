@@ -9,20 +9,19 @@ import Link from "next/link";
 import { isValidSolanaAddress } from "@/lib/solana";
 import { WalletAddModal } from "@/components/wallet-add-modal";
 import {
+  BarChart,
   WalletIcon,
   Plus,
+  AlertTriangle,
   RefreshCw,
   ArrowUpRight,
   Trash2,
-  Star,
-  ActivityIcon,
 } from "lucide-react";
 
 interface Wallet {
   id: string;
   address: string;
   label: string | null;
-  isMain: boolean;
   createdAt: string;
   balance?: number;
 }
@@ -45,6 +44,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [balances, setBalances] = useState<Record<string, WalletBalance>>({});
   const [loadingBalances, setLoadingBalances] = useState<Record<string, boolean>>({});
+  const [activeTab, setActiveTab] = useState("overview");
   const [showAddModal, setShowAddModal] = useState(false);
 
   // Fetch user's wallets
@@ -57,14 +57,24 @@ export default function DashboardPage() {
   const fetchWallets = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/wallets");
+      console.log("Fetching wallets...");
+      
+      // Die korrekte API-Route für Wallets
+      const response = await fetch("/api/auth/wallets");
       
       if (!response.ok) {
-        // We're silently handling the error instead of showing an error message
-        console.error("Failed to fetch wallets");
+        // Log more details about the error
+        console.error("Failed to fetch wallets, status:", response.status);
+        try {
+          const errorData = await response.json();
+          console.error("Error details:", errorData);
+        } catch (e) {
+          console.error("Could not parse error response");
+        }
         setWallets([]);
       } else {
         const data = await response.json();
+        console.log("Wallets fetched successfully:", data);
         setWallets(data);
         
         // Initialize loading state for each wallet
@@ -88,10 +98,15 @@ export default function DashboardPage() {
   };
 
   const fetchWalletBalance = async (walletAddress: string) => {
+    if (!walletAddress || typeof walletAddress !== 'string') {
+      console.error("Invalid wallet address");
+      return;
+    }
+    
     try {
       setLoadingBalances(prev => ({ ...prev, [walletAddress]: true }));
       
-      const response = await fetch(`/api/wallets/balance?address=${walletAddress}`);
+      const response = await fetch(`/api/auth/wallets/balance?address=${encodeURIComponent(walletAddress)}`);
       
       if (!response.ok) {
         throw new Error("Failed to fetch balance");
@@ -107,51 +122,32 @@ export default function DashboardPage() {
   };
 
   const handleDeleteWallet = async (walletId: string) => {
+    if (!walletId || typeof walletId !== 'string') {
+      console.error("Invalid wallet ID");
+      return;
+    }
+    
     if (!confirm("Are you sure you want to delete this wallet?")) {
       return;
     }
     
     try {
-      const response = await fetch(`/api/wallets/${walletId}`, {
+      const response = await fetch(`/api/auth/wallets/${walletId}`, {
         method: "DELETE",
       });
       
       if (!response.ok) {
-        console.error("Failed to delete wallet");
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        console.error("Failed to delete wallet:", errorData.error || "Unknown error");
         return;
       }
+      
+      console.log("Wallet deleted successfully");
       
       // Remove from state
       setWallets(wallets.filter(wallet => wallet.id !== walletId));
     } catch (err) {
       console.error("Failed to delete wallet:", err);
-    }
-  };
-
-  const handleSetMainWallet = async (walletId: string) => {
-    try {
-      const response = await fetch(`/api/wallets/${walletId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          isMain: true,
-        }),
-      });
-      
-      if (!response.ok) {
-        console.error("Failed to update wallet");
-        return;
-      }
-      
-      // Update state
-      setWallets(wallets.map(wallet => ({
-        ...wallet,
-        isMain: wallet.id === walletId,
-      })));
-    } catch (err) {
-      console.error("Failed to update wallet:", err);
     }
   };
 
@@ -207,7 +203,7 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -220,25 +216,10 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {wallets.map((wallet) => (
                 <Card key={wallet.id} className="relative overflow-hidden">
-                  {wallet.isMain && (
-                    <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-bl">
-                      Main Wallet
-                    </div>
-                  )}
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
                       <span className="truncate mr-2">{wallet.label || wallet.address.substring(0, 8) + "..."}</span>
                       <div className="flex gap-1">
-                        {!wallet.isMain && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleSetMainWallet(wallet.id)}
-                            title="Set as main wallet"
-                          >
-                            <Star className="h-4 w-4" />
-                          </Button>
-                        )}
                         <Button
                           variant="ghost"
                           size="icon"
@@ -264,18 +245,11 @@ export default function DashboardPage() {
                             </span>
                           </div>
                           {balances[wallet.address].tokens.length > 0 && (
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">
-                                Tokens: {balances[wallet.address].tokens.length}
-                              </p>
-                              <div className="max-h-32 overflow-y-auto text-xs space-y-1">
-                                {balances[wallet.address].tokens.map((token, idx) => (
-                                  <div key={idx} className="flex justify-between">
-                                    <span className="truncate mr-2">{token.mint.substring(0, 8)}...</span>
-                                    <span>{token.balance}</span>
-                                  </div>
-                                ))}
-                              </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Tokens:</span>
+                              <span className="font-semibold">
+                                {balances[wallet.address].tokens.length}
+                              </span>
                             </div>
                           )}
                         </div>
@@ -302,11 +276,9 @@ export default function DashboardPage() {
                       )}
                       {loadingBalances[wallet.address] ? "Loading..." : "Refresh"}
                     </Button>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link href={`/dashboard/transactions?address=${wallet.address}`}>
-                        <ActivityIcon className="mr-2 h-4 w-4" />
-                        Transactions
-                      </Link>
+                    <Button size="sm" variant="outline" onClick={() => setActiveTab("analytics")}>
+                      <BarChart className="mr-2 h-4 w-4" />
+                      Analyze
                     </Button>
                   </div>
                 </Card>

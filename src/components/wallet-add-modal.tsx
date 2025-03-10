@@ -40,7 +40,7 @@ export function WalletAddModal({ isOpen, onClose, onWalletAdded }: WalletAddModa
       setAddingWallet(true);
       setError(null);
       
-      const response = await fetch("/api/wallets", {
+      const response = await fetch("/api/auth/wallets", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
