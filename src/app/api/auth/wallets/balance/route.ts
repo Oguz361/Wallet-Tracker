@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import { authOptions } from "../../[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
-import { getWalletBalance, getTokenBalances, isValidSolanaAddress } from "@/lib/solana";
+import { getWalletBalance, getTokenBalances, isValidSolanaAddress, getLastTransactionDate } from "@/lib/solana";
 
 export async function GET(req: Request) {
   try {
@@ -56,16 +56,18 @@ export async function GET(req: Request) {
       );
     }
 
-    // Fetch SOL balance and token balances in parallel
-    const [solBalance, tokens] = await Promise.all([
+    // Fetch SOL balance, token balances, and last transaction date in parallel
+    const [solBalance, tokens, lastTxDate] = await Promise.all([
       getWalletBalance(walletAddress),
-      getTokenBalances(walletAddress)
+      getTokenBalances(walletAddress),
+      getLastTransactionDate(walletAddress)
     ]);
 
     return NextResponse.json({
       address: walletAddress,
       solBalance,
-      tokens
+      tokens,
+      lastTransactionDate: lastTxDate
     });
   } catch (error) {
     console.error("Error fetching balance:", error);

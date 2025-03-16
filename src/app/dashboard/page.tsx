@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { isValidSolanaAddress } from "@/lib/solana";
 import { WalletAddModal } from "@/components/wallet-add-modal";
+import { ProfitLossTable } from "@/components/profit-loss-table";
+import { TopTokensTable } from "@/components/top-tokens-table";
 import {
   BarChart,
   WalletIcon,
@@ -36,6 +38,7 @@ interface WalletBalance {
   address: string;
   solBalance: number;
   tokens: Token[];
+  lastTransactionDate: string | null;
 }
 
 export default function DashboardPage() {
@@ -187,6 +190,13 @@ export default function DashboardPage() {
     );
   }
 
+  // Format date for display
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "No activity";
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 pt-6">
@@ -252,6 +262,14 @@ export default function DashboardPage() {
                               </span>
                             </div>
                           )}
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Last Activity:</span>
+                            <span className="font-semibold">
+                              {balances[wallet.address].lastTransactionDate 
+                                ? formatDate(balances[wallet.address].lastTransactionDate)
+                                : "No activity"}
+                            </span>
+                          </div>
                         </div>
                       ) : (
                         <div className="text-center py-2">
@@ -307,17 +325,27 @@ export default function DashboardPage() {
           </TabsContent>
 
           <TabsContent value="analytics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analytics</CardTitle>
-                <CardDescription>View detailed analytics of your wallets and transactions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Analytics features coming soon. Stay tuned for updates!
-                </p>
-              </CardContent>
-            </Card>
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Profit/Loss Rankings</CardTitle>
+                  <CardDescription>View profit and loss rankings for your wallets across different time periods</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ProfitLossTable />
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Tokens Purchased</CardTitle>
+                  <CardDescription>View the most purchased tokens across your wallets</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <TopTokensTable />
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="settings">
