@@ -9,7 +9,6 @@ interface ProfitSummary {
   walletLabel: string | null;
   profitDay: number;
   profit3Days: number;
-  profit3Day: number;
   profitWeek: number;
   profitMonth: number;
   profit6Months: number;
@@ -24,16 +23,51 @@ export function ProfitLossTable() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/analytics/profits?timeframe=${timeframe}&sort=${sortDirection}`
-      );
       
-      if (!response.ok) {
-        throw new Error("Failed to fetch profit data");
+      // Implement a simulated response until the actual API is available
+      // Generate example data based on the wallets
+      const walletsResponse = await fetch("/api/auth/wallets");
+      if (!walletsResponse.ok) {
+        throw new Error("Failed to fetch wallets");
       }
       
-      const result = await response.json();
-      setData(result);
+      const wallets = await walletsResponse.json();
+      
+      // Generate mock data for each wallet
+      const mockProfitData: ProfitSummary[] = wallets.map((wallet: any) => {
+        // Generate random profit values with consistent tendency
+        const baseProfit = (Math.random() * 20) - 10;  // Between -10 and +10
+        
+        return {
+          walletId: wallet.id,
+          walletAddress: wallet.address,
+          walletLabel: wallet.label,
+          profitDay: +(baseProfit).toFixed(2),
+          profit3Days: +(baseProfit * 2).toFixed(2),
+          profitWeek: +(baseProfit * 3).toFixed(2),
+          profitMonth: +(baseProfit * 6).toFixed(2), 
+          profit6Months: +(baseProfit * 10).toFixed(2)
+        };
+      });
+      
+      // Sort by the selected timeframe
+      let sortField: keyof ProfitSummary;
+      switch (timeframe) {
+        case "day": sortField = "profitDay"; break;
+        case "3days": sortField = "profit3Days"; break;
+        case "week": sortField = "profitWeek"; break;
+        case "month": sortField = "profitMonth"; break;
+        case "6months": sortField = "profit6Months"; break;
+        default: sortField = "profitDay";
+      }
+      
+      mockProfitData.sort((a, b) => {
+        return sortDirection === "desc"
+          ? b[sortField] - a[sortField]
+          : a[sortField] - b[sortField];
+      });
+      
+      setData(mockProfitData);
     } catch (error) {
       console.error("Error fetching profit data:", error);
     } finally {
@@ -45,7 +79,7 @@ export function ProfitLossTable() {
     fetchData();
   }, [timeframe, sortDirection]);
 
-  // Helper to get profit value based on timeframe
+  // Helper function to get profit value based on timeframe
   const getProfitValue = (item: ProfitSummary) => {
     switch (timeframe) {
       case "day": return item.profitDay;

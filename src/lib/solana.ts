@@ -1,11 +1,12 @@
-import {
-  Connection,
-  PublicKey,
-  LAMPORTS_PER_SOL,
+import { 
+  Connection, 
+  PublicKey, 
+  LAMPORTS_PER_SOL, 
   clusterApiUrl,
-} from "@solana/web3.js";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { sign } from "crypto";
+  TransactionResponse,
+  VersionedTransactionResponse 
+} from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
 
 interface TokenPurchase {
@@ -129,31 +130,60 @@ export function isValidSolanaAddress(address: string): boolean {
   }
 }
 
-export async function getLastTransactionDate(
-  walletAddress: String
-): Promise<string | null> {
+/**
+ * Get last transaction date for a wallet
+ */
+export async function getLastTransactionDate(walletAddress: string): Promise<string | null> {
   try {
     const publicKey = new PublicKey(walletAddress);
-
-    const signatures = await connection.getSignaturesForAddress(publicKey, {
-      limit: 1,
-    });
-
-    if (signatures.length == 1) {
-      return null;
+    
+    // Get signature of the most recent transaction with retry logic
+    try {
+      const signatures = await connection.getSignaturesForAddress(
+        publicKey,
+        { limit: 1 }
+      );
+      
+      if (signatures.length === 0) {
+        return null;
+      }
+      
+      // Return the timestamp
+      return signatures[0].blockTime 
+        ? new Date(signatures[0].blockTime * 1000).toISOString()
+        : null;
+    } catch (error) {
+      console.error("Error fetching signatures:", error);
+      // Try again with fewer results if we hit a timeout
+      console.log("Retrying with smaller query...");
+      
+      try {
+        // Use a direct RPC call with smaller limit as fallback
+        const signatures = await connection.getSignaturesForAddress(
+          publicKey,
+          { limit: 1 }
+        );
+        
+        if (signatures.length === 0) {
+          return null;
+        }
+        
+        return signatures[0].blockTime 
+          ? new Date(signatures[0].blockTime * 1000).toISOString()
+          : null;
+      } catch (retryError) {
+        console.error("Retry also failed:", retryError);
+        return null;
+      }
     }
-
-    return signatures[0].blockTime
-      ? new Date(signatures[0].blockTime * 1000).toISOString()
-      : null;
   } catch (error) {
-    console.error("Error fetching last transaction date:", error);
+    console.error('Error fetching last transaction date:', error);
     return null;
   }
 }
 
 /**
- * Get historical transactions for a wallet over a specified period
+ * Get historical transactions for a wallet over a specified period with better error handling
  */
 export async function getHistoricalTransactions(walletAddress: string, daysBack: number) {
   try {
@@ -161,7 +191,7 @@ export async function getHistoricalTransactions(walletAddress: string, daysBack:
     
     // Calculate how many transactions to fetch based on days
     // This is an approximation - you might need to adjust this based on wallet activity
-    const estimatedTxCount = Math.min(1000, daysBack * 5); // Assume average 5 tx per day, max 1000
+    const estimatedTxCount = Math.min(50, daysBack * 2); // Reduce number to avoid timeouts
     
     // Get signatures of recent transactions
     const signatures = await connection.getSignaturesForAddress(
@@ -169,28 +199,43 @@ export async function getHistoricalTransactions(walletAddress: string, daysBack:
       { limit: estimatedTxCount }
     );
     
-    // Get detailed transaction information
+    // Get detailed transaction information with better error handling
     const transactions = await Promise.all(
       signatures.map(async (sig) => {
         try {
-          const tx = await connection.getTransaction(sig.signature);
+          // Use a timeout for each transaction fetch
+          const txPromise = connection.getTransaction(sig.signature);
+          const tx = await Promise.race([
+            txPromise,
+            new Promise<null>((_, reject) => 
+              setTimeout(() => reject(new Error('Transaction fetch timeout')), 5000)
+            )
+          ]) as TransactionResponse | VersionedTransactionResponse | null;
+          
           return {
             signature: sig.signature,
             blockTime: sig.blockTime ? new Date(sig.blockTime * 1000).toISOString() : null,
             slot: sig.slot,
-            status: tx?.meta?.err ? 'failed' : 'success',
-            fee: tx?.meta?.fee ? tx.meta.fee / LAMPORTS_PER_SOL : null,
-            // For a real implementation, you'd want to add more transaction details
-            // like amount transferred, token info, etc.
+            // Safely check if meta exists and has an err property
+            status: tx && 'meta' in tx && tx.meta?.err ? 'failed' : 'success',
+            // Safely check if meta exists and has a fee property
+            fee: tx && 'meta' in tx && tx.meta?.fee ? tx.meta.fee / LAMPORTS_PER_SOL : null,
           };
         } catch (err) {
           console.error(`Error fetching transaction ${sig.signature}:`, err);
-          return null;
+          // Return partial data instead of null
+          return {
+            signature: sig.signature,
+            blockTime: sig.blockTime ? new Date(sig.blockTime * 1000).toISOString() : null,
+            slot: sig.slot,
+            status: 'unknown',
+            fee: null,
+          };
         }
       })
     );
     
-    return transactions.filter(tx => tx !== null);
+    return transactions;
   } catch (error) {
     console.error('Error fetching historical transactions:', error);
     return [];

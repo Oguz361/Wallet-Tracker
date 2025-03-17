@@ -3,7 +3,13 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
 import { isValidSolanaAddress } from "@/lib/solana";
@@ -19,6 +25,8 @@ import {
   ArrowUpRight,
   Trash2,
 } from "lucide-react";
+import { TelegramSetup } from "@/components/telegram-setup";
+import { AlertSetup } from "@/components/alert-setup";
 
 interface Wallet {
   id: string;
@@ -46,7 +54,9 @@ export default function DashboardPage() {
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(true);
   const [balances, setBalances] = useState<Record<string, WalletBalance>>({});
-  const [loadingBalances, setLoadingBalances] = useState<Record<string, boolean>>({});
+  const [loadingBalances, setLoadingBalances] = useState<
+    Record<string, boolean>
+  >({});
   const [activeTab, setActiveTab] = useState("overview");
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -61,10 +71,10 @@ export default function DashboardPage() {
     try {
       setLoading(true);
       console.log("Fetching wallets...");
-      
+
       // Die korrekte API-Route für Wallets
       const response = await fetch("/api/auth/wallets");
-      
+
       if (!response.ok) {
         // Log more details about the error
         console.error("Failed to fetch wallets, status:", response.status);
@@ -79,14 +89,14 @@ export default function DashboardPage() {
         const data = await response.json();
         console.log("Wallets fetched successfully:", data);
         setWallets(data);
-        
+
         // Initialize loading state for each wallet
         const initialLoadingState: Record<string, boolean> = {};
         data.forEach((wallet: Wallet) => {
           initialLoadingState[wallet.address] = false;
         });
         setLoadingBalances(initialLoadingState);
-        
+
         // Fetch balances for all wallets
         data.forEach((wallet: Wallet) => {
           fetchWalletBalance(wallet.address);
@@ -101,54 +111,61 @@ export default function DashboardPage() {
   };
 
   const fetchWalletBalance = async (walletAddress: string) => {
-    if (!walletAddress || typeof walletAddress !== 'string') {
+    if (!walletAddress || typeof walletAddress !== "string") {
       console.error("Invalid wallet address");
       return;
     }
-    
+
     try {
-      setLoadingBalances(prev => ({ ...prev, [walletAddress]: true }));
-      
-      const response = await fetch(`/api/auth/wallets/balance?address=${encodeURIComponent(walletAddress)}`);
-      
+      setLoadingBalances((prev) => ({ ...prev, [walletAddress]: true }));
+
+      const response = await fetch(
+        `/api/auth/wallets/balance?address=${encodeURIComponent(walletAddress)}`
+      );
+
       if (!response.ok) {
         throw new Error("Failed to fetch balance");
       }
-      
+
       const data = await response.json();
-      setBalances(prev => ({ ...prev, [walletAddress]: data }));
+      setBalances((prev) => ({ ...prev, [walletAddress]: data }));
     } catch (err) {
       console.error("Error fetching balance:", err);
     } finally {
-      setLoadingBalances(prev => ({ ...prev, [walletAddress]: false }));
+      setLoadingBalances((prev) => ({ ...prev, [walletAddress]: false }));
     }
   };
 
   const handleDeleteWallet = async (walletId: string) => {
-    if (!walletId || typeof walletId !== 'string') {
+    if (!walletId || typeof walletId !== "string") {
       console.error("Invalid wallet ID");
       return;
     }
-    
+
     if (!confirm("Are you sure you want to delete this wallet?")) {
       return;
     }
-    
+
     try {
       const response = await fetch(`/api/auth/wallets/${walletId}`, {
         method: "DELETE",
       });
-      
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        console.error("Failed to delete wallet:", errorData.error || "Unknown error");
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Unknown error" }));
+        console.error(
+          "Failed to delete wallet:",
+          errorData.error || "Unknown error"
+        );
         return;
       }
-      
+
       console.log("Wallet deleted successfully");
-      
+
       // Remove from state
-      setWallets(wallets.filter(wallet => wallet.id !== walletId));
+      setWallets(wallets.filter((wallet) => wallet.id !== walletId));
     } catch (err) {
       console.error("Failed to delete wallet:", err);
     }
@@ -204,8 +221,8 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
           </div>
-          <Button 
-            className="mt-4 md:mt-0" 
+          <Button
+            className="mt-4 md:mt-0"
             onClick={() => setShowAddModal(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -217,18 +234,21 @@ export default function DashboardPage() {
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="notifications">Notifications</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
             <h2 className="text-xl font-bold mb-4">Your Wallets</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {wallets.map((wallet) => (
                 <Card key={wallet.id} className="relative overflow-hidden">
                   <CardHeader>
                     <CardTitle className="flex items-center justify-between">
-                      <span className="truncate mr-2">{wallet.label || wallet.address.substring(0, 8) + "..."}</span>
+                      <span className="truncate mr-2">
+                        {wallet.label || wallet.address.substring(0, 8) + "..."}
+                      </span>
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"
@@ -249,24 +269,33 @@ export default function DashboardPage() {
                       {balances[wallet.address] ? (
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">SOL Balance:</span>
+                            <span className="text-muted-foreground">
+                              SOL Balance:
+                            </span>
                             <span className="font-semibold">
-                              {balances[wallet.address].solBalance.toFixed(4)} SOL
+                              {balances[wallet.address].solBalance.toFixed(4)}{" "}
+                              SOL
                             </span>
                           </div>
                           {balances[wallet.address].tokens.length > 0 && (
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Tokens:</span>
+                              <span className="text-muted-foreground">
+                                Tokens:
+                              </span>
                               <span className="font-semibold">
                                 {balances[wallet.address].tokens.length}
                               </span>
                             </div>
                           )}
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Last Activity:</span>
+                            <span className="text-muted-foreground">
+                              Last Activity:
+                            </span>
                             <span className="font-semibold">
-                              {balances[wallet.address].lastTransactionDate 
-                                ? formatDate(balances[wallet.address].lastTransactionDate)
+                              {balances[wallet.address].lastTransactionDate
+                                ? formatDate(
+                                    balances[wallet.address].lastTransactionDate
+                                  )
                                 : "No activity"}
                             </span>
                           </div>
@@ -274,7 +303,9 @@ export default function DashboardPage() {
                       ) : (
                         <div className="text-center py-2">
                           <p className="text-muted-foreground text-sm mb-2">
-                            {loadingBalances[wallet.address] ? "Loading balance..." : "No balance data"}
+                            {loadingBalances[wallet.address]
+                              ? "Loading balance..."
+                              : "No balance data"}
                           </p>
                         </div>
                       )}
@@ -292,9 +323,15 @@ export default function DashboardPage() {
                       ) : (
                         <RefreshCw className="mr-2 h-4 w-4" />
                       )}
-                      {loadingBalances[wallet.address] ? "Loading..." : "Refresh"}
+                      {loadingBalances[wallet.address]
+                        ? "Loading..."
+                        : "Refresh"}
                     </Button>
-                    <Button size="sm" variant="outline" onClick={() => setActiveTab("analytics")}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setActiveTab("analytics")}
+                    >
                       <BarChart className="mr-2 h-4 w-4" />
                       Analyze
                     </Button>
@@ -308,12 +345,14 @@ export default function DashboardPage() {
                   <p className="mt-4 text-lg">Loading your wallets...</p>
                 </div>
               )}
-              
+
               {!loading && wallets.length === 0 && (
                 <div className="col-span-full text-center py-8">
                   <div className="flex flex-col items-center justify-center space-y-4">
                     <WalletIcon className="h-12 w-12 opacity-20" />
-                    <p className="text-lg text-muted-foreground">No wallets added yet</p>
+                    <p className="text-lg text-muted-foreground">
+                      No wallets added yet
+                    </p>
                     <Button onClick={() => setShowAddModal(true)}>
                       <Plus className="mr-2 h-4 w-4" />
                       Add your first wallet
@@ -329,17 +368,22 @@ export default function DashboardPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Profit/Loss Rankings</CardTitle>
-                  <CardDescription>View profit and loss rankings for your wallets across different time periods</CardDescription>
+                  <CardDescription>
+                    View profit and loss rankings for your wallets across
+                    different time periods
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ProfitLossTable />
                 </CardContent>
               </Card>
-              
+
               <Card>
                 <CardHeader>
                   <CardTitle>Top Tokens Purchased</CardTitle>
-                  <CardDescription>View the most purchased tokens across your wallets</CardDescription>
+                  <CardDescription>
+                    View the most purchased tokens across your wallets
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <TopTokensTable />
@@ -352,7 +396,9 @@ export default function DashboardPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Settings</CardTitle>
-                <CardDescription>Manage your account and notification preferences</CardDescription>
+                <CardDescription>
+                  Manage your account and notification preferences
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground">
@@ -361,13 +407,19 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </TabsContent>
+          <TabsContent value="notifications">
+            <div className="grid gap-6">
+              <TelegramSetup />
+              <AlertSetup />
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
-      <WalletAddModal 
-        isOpen={showAddModal} 
-        onClose={() => setShowAddModal(false)} 
-        onWalletAdded={onWalletAdded} 
+      <WalletAddModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onWalletAdded={onWalletAdded}
       />
     </div>
   );

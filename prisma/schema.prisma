@@ -12,11 +12,12 @@ datasource db {
 
 // User model
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id            String          @id @default(cuid())
+  email         String          @unique
   password      String
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime        @default(now())
   wallets       Wallet[]
+  telegramConfig TelegramConfig?
 }
 
 // Wallet model for storing Solana addresses
@@ -48,4 +49,34 @@ model TransactionCache {
 
   @@index([walletAddress])
   @@index([blockTime])
+}
+
+// TelegramConfig model
+model TelegramConfig {
+  id            String     @id @default(cuid())
+  userId        String     @unique
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatId        String
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  alerts        Alert[]
+}
+
+// Alert model for notification settings
+model Alert {
+  id                String         @id @default(cuid())
+  telegramConfigId  String
+  telegramConfig    TelegramConfig @relation(fields: [telegramConfigId], references: [id], onDelete: Cascade)
+  type              String         // transaction, profit, loss, token_purchase, etc.
+  walletAddress     String?        // Optional - specific wallet to monitor or all wallets if null
+  tokenAddress      String?        // Optional - specific token to monitor
+  threshold         Float?         // Optional - threshold value to trigger alert
+  isActive          Boolean        @default(true)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([telegramConfigId])
+  @@index([type])
+  @@index([walletAddress])
 }

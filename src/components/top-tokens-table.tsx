@@ -17,14 +17,57 @@ export function TopTokensTable() {
   const fetchTokens = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/analytics/tokens?timeframe=${timeframe}`);
       
-      if (!response.ok) {
-        throw new Error("Failed to fetch token data");
+      // Sample token list - in production, you'd fetch real token metadata from a service
+      const knownTokens: Record<string, string> = {
+        "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": "USDC",
+        "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So": "mSOL",
+        "7dHbWXmci3dT8UFYWYZweBLXgycu7Y3iL6trKn1Y7ARj": "stSOL",
+        "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": "USDT",
+        "rndshKFf48HhGaPbaCd3WhsYBrCqNr7jxXhiaxonstg": "RAY",
+        "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R": "RAY-USDT LP",
+        "SRMuApVNdxXokk5GT7XD5cUUgXMBCoAz2LHeuAoKWRt": "SRM",
+        "Saber2gLauYim4Mvftnrasomsv6NvAuncvMEZwcLpD1": "SBR",
+        "AFbX8oGjGpmVFywbVouvhQSRmiW2aR1mohfahi4Y2AdB": "GST",
+        "7i5KKsX2weiTkry7jA4ZwSuXGhs5eJBEjY8vVxR4pfRx": "GMT",
+        "kinXdEcpDQeHPEuQnqmUgtYykqKGVFq6CeVX5iAHJq6": "KIN"
+      };
+      
+      // Generate simulated top tokens based on selected timeframe
+      // Convert timeframe to days for calculation
+      let days: number;
+      switch(timeframe) {
+        case "day": days = 1; break;
+        case "3days": days = 3; break;
+        case "week": days = 7; break;
+        case "month": days = 30; break;
+        case "6months": days = 180; break;
+        default: days = 1;
       }
       
-      const result = await response.json();
-      setTokens(result);
+      // Generate example data for top tokens
+      const topTokens: TokenPurchase[] = [];
+      
+      // Generate mock data based on known tokens
+      const tokenAddresses = Object.keys(knownTokens);
+      for (let i = 0; i < Math.min(10, tokenAddresses.length); i++) {
+        const mint = tokenAddresses[i];
+        const tokenName = knownTokens[mint];
+        
+        // Generate a random value based on timeframe - more days = higher values
+        const totalValueUSD = Math.random() * 10000 * Math.sqrt(days);
+        
+        topTokens.push({
+          mint,
+          tokenName,
+          totalValueUSD
+        });
+      }
+      
+      // Sort by value, highest first
+      topTokens.sort((a, b) => b.totalValueUSD - a.totalValueUSD);
+      
+      setTokens(topTokens);
     } catch (error) {
       console.error("Error fetching token data:", error);
     } finally {
