@@ -35,19 +35,19 @@ export async function GET(req: Request) {
     // Get wallet addresses
     const walletAddresses = user.wallets.map(wallet => wallet.address);
     
-    // Convert timeframe to days
-    let days: number;
+    // Calculate days back based on timeframe
+    let daysBack: number;
     switch(timeframe) {
-      case "day": days = 1; break;
-      case "3days": days = 3; break;
-      case "week": days = 7; break;
-      case "month": days = 30; break;
-      case "6months": days = 180; break;
-      default: days = 1;
+      case "day": daysBack = 1; break;
+      case "3days": daysBack = 3; break;
+      case "week": daysBack = 7; break;
+      case "month": daysBack = 30; break;
+      case "6months": daysBack = 180; break;
+      default: daysBack = 1;
     }
     
     // Get top tokens purchased
-    const topTokens = await getTopTokensPurchased(walletAddresses, days);
+    const topTokens = await getTokenPurchases(walletAddresses, daysBack);
     
     return NextResponse.json(topTokens);
   } catch (error) {

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, TrendingUp, TrendingDown } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 interface ProfitSummary {
   walletId: string;
@@ -12,6 +14,7 @@ interface ProfitSummary {
   profitWeek: number;
   profitMonth: number;
   profit6Months: number;
+  [key: string]: string | number | null; 
 }
 
 export function ProfitLossTable() {
@@ -19,57 +22,28 @@ export function ProfitLossTable() {
   const [sortDirection, setSortDirection] = useState("desc");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ProfitSummary[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Implement a simulated response until the actual API is available
-      // Generate example data based on the wallets
-      const walletsResponse = await fetch("/api/auth/wallets");
-      if (!walletsResponse.ok) {
-        throw new Error("Failed to fetch wallets");
+      // Use the real API endpoint
+      const response = await fetch(
+        `/api/analytics/profits?timeframe=${timeframe}&sort=${sortDirection}`
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to fetch profit data");
       }
       
-      const wallets = await walletsResponse.json();
-      
-      // Generate mock data for each wallet
-      const mockProfitData: ProfitSummary[] = wallets.map((wallet: any) => {
-        // Generate random profit values with consistent tendency
-        const baseProfit = (Math.random() * 20) - 10;  // Between -10 and +10
-        
-        return {
-          walletId: wallet.id,
-          walletAddress: wallet.address,
-          walletLabel: wallet.label,
-          profitDay: +(baseProfit).toFixed(2),
-          profit3Days: +(baseProfit * 2).toFixed(2),
-          profitWeek: +(baseProfit * 3).toFixed(2),
-          profitMonth: +(baseProfit * 6).toFixed(2), 
-          profit6Months: +(baseProfit * 10).toFixed(2)
-        };
-      });
-      
-      // Sort by the selected timeframe
-      let sortField: keyof ProfitSummary;
-      switch (timeframe) {
-        case "day": sortField = "profitDay"; break;
-        case "3days": sortField = "profit3Days"; break;
-        case "week": sortField = "profitWeek"; break;
-        case "month": sortField = "profitMonth"; break;
-        case "6months": sortField = "profit6Months"; break;
-        default: sortField = "profitDay";
-      }
-      
-      mockProfitData.sort((a, b) => {
-        return sortDirection === "desc"
-          ? b[sortField] - a[sortField]
-          : a[sortField] - b[sortField];
-      });
-      
-      setData(mockProfitData);
-    } catch (error) {
-      console.error("Error fetching profit data:", error);
+      const result = await response.json();
+      setData(result);
+    } catch (err) {
+      console.error("Error fetching profit data:", err);
+      setError(err instanceof Error ? err.message : "An error occurred while fetching data");
     } finally {
       setLoading(false);
     }
@@ -79,7 +53,7 @@ export function ProfitLossTable() {
     fetchData();
   }, [timeframe, sortDirection]);
 
-  // Helper function to get profit value based on timeframe
+  // Helper to get profit value based on timeframe
   const getProfitValue = (item: ProfitSummary) => {
     switch (timeframe) {
       case "day": return item.profitDay;
@@ -102,6 +76,13 @@ export function ProfitLossTable() {
 
   return (
     <div className="space-y-4">
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <Tabs value={timeframe} onValueChange={setTimeframe} className="w-full sm:w-auto">
           <TabsList>
