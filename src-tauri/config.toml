@@ -1,0 +1,27 @@
+[helius]
+api_key = "YOUR_HELIUS_API_KEY_HERE"  # WICHTIG: Füge deinen echten Key ein!
+rpc_endpoint = "https://mainnet.helius-rpc.com"
+ws_endpoint = "wss://mainnet.helius-rpc.com"
+
+[trading]
+max_position_sol = 1.0
+min_copy_trade_sol = 0.5
+position_multiplier = 0.3
+max_daily_loss_sol = 3.0
+stop_loss_percentage = 30.0
+take_profit_multiplier = 2.0
+
+[execution]
+base_priority_fee = 50000
+high_congestion_multiplier = 4
+max_priority_fee = 500000
+max_retries = 3
+retry_delay_ms = 100
+
+[monitoring]
+target_wallets = [
+    # Füge hier die Wallets ein, die du kopieren willst
+    "11111111111111111111111111111111"
+]
+dashboard_refresh_ms = 1000
+database_path = "./sentinel.db"
